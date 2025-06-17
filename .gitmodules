@@ -1,0 +1,3 @@
+[submodule "external/ModularNetServer"]
+	path = external/ModularNetServer
+	url = https://github.com/Zhu-Hacken/ModularNetServer.git
