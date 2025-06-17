@@ -2,6 +2,10 @@
 #include "init.h"
 #include "config/configs.h"
 #include "log_utils.h"
+#include <onnxruntime/onnxruntime_cxx_api.h>
+#include <string>
+
+const std::string BASE_TEXT = "[MiniAiServer] ";
 
 int main(int argc, char* argv[]) {
 
@@ -16,6 +20,12 @@ int main(int argc, char* argv[]) {
     initAllModules(config, username, password, databasename);
 
 
-    LOG_INFO("MiniAiServer 启动！");
+
+    LOG_INFO(BASE_TEXT + "MiniAiServer 启动！");
+
+    Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "test_env");
+
+    LOG_INFO(BASE_TEXT + "ONNX Runtime 环境初始化成功！");
+
     return 0;
 }
