@@ -1,0 +1,17 @@
+{
+    "_comment_log_control": "日志系统控制项",
+    "_comment_log_level": "日志等级（0=DEBUG, 1=INFO, 2=WARN, 3=ERROR, 4=FATAL）",
+    "log_level": 0,
+    "_comment_log_close": "是否关闭日志输出（true=关闭）",
+    "log_close": true,
+
+    "_comment_module_switch": "功能模块控制开关",
+    "_comment_rate_limiter_close": "是否关闭频率限制器（true=关闭）",
+    "rate_limiter_close": false,
+    "_comment_interceptor_close": "是否关闭请求拦截器（true=关闭）",
+    "interceptor_close": false,
+
+    "_comment_config_reload": "热更新系统控制项",
+    "_comment_config_manager_close": "是否关闭热更新（true=关闭，不启动监视线程）",
+    "config_manager_close": true
+}

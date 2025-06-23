@@ -1,8 +1,11 @@
 #include "init.h"
+#include "ai/phi3/phi3_engine_pool.h"
+#include "config_manager.h"
 #include "log/logs.h"
 #include "db/sql_connection_pool.h"
 #include "conn/conn_factory_manager.h"
 
+#include "mvc/controller/chat_controller.h"
 #include "mvc/controller/test_controller.h"
 #include "mvc/controller/user_controller.h"
 #include "mvc/controller/test_tx_controller.h"
@@ -12,7 +15,7 @@ const std::string BASE_TEXT = "[Init] ";
 
 // === 初始化热更新 ===
 void initConfigManager() {
-    ConfigManager::getInstace().init(true);
+    ConfigManager::getInstace().init(true, ConfigManager::getInstace().getPath());
     LOG_INFO(BASE_TEXT + ConfigManager::getInstace().get("log_close"));
 
     ConfigManager::getInstace().registerCallback("log_close", [](){
@@ -32,6 +35,7 @@ void registerAllRoutesImpl() {
         TestController::registerRoutes();
         UserController::registerRoutes();
         TestTxController::registerRoutes();
+        ChatController::registerRoutes();
 }
 
 void initRouter() {
@@ -67,7 +71,9 @@ void registerAllInterceptorImpl() {
     "/welcome.html",
     "/video.mp4",
     "/test_transaction.html",
-    "/api/tx_test"
+    "/api/tx_test",
+    "/ai/chat"
+    
     }, true);
 
      // 注册 URI 黑名单（命中即拦截）
@@ -109,6 +115,11 @@ void initConnFactory(ServerConfig config) {
     });
 }
 
+// === 初始化Phi3引擎池 ===
+void initPhi3EnginePool() {
+    Phi3EnginePool::getInstance().init(8);
+}
+
 void initAllModules(ServerConfig config, 
                     std::string& db_username, 
                     std::string& db_password, 
@@ -128,4 +139,6 @@ void initAllModules(ServerConfig config,
     initSqlConnPool(config, db_username, db_password, db_name, db_port);
     // === 初始化连接对象工厂 === 
     initConnFactory(config);
+    // === 初始化Phi3引擎池 ===
+    initPhi3EnginePool();
 }

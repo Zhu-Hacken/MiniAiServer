@@ -4,6 +4,7 @@
 #include "log_utils.h"
 #include <onnxruntime/onnxruntime_cxx_api.h>
 #include <string>
+#include "net/net_server.h"
 
 const std::string BASE_TEXT = "[MiniAiServer] ";
 
@@ -26,6 +27,10 @@ int main(int argc, char* argv[]) {
     Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "test_env");
 
     LOG_INFO(BASE_TEXT + "ONNX Runtime 环境初始化成功！");
+
+    NetServer server(config);
+    server.init(username, password, databasename);
+    server.run();
 
     return 0;
 }
