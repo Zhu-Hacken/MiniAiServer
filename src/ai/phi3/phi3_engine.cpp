@@ -1,6 +1,7 @@
 #include "phi3_engine.h"
 #include "ai/onnx_engine.h"
 #include "ai/phi3/phi3_global_model.h"
+#include "ai_session/chat_context_store.h"
 #include "log/logs.h"
 #include "log_utils.h"
 #include <algorithm>
@@ -51,12 +52,25 @@ size_t totalElements(const std::vector<int64_t>& s) {
     size_t t = 1; for (auto d : s) t *= d; return t;
 }
 
-std::string Phi3Engine::build_prompt(const std::string& user_input) {
+std::string Phi3Engine::buildPrompt(const std::string& user_input) {
     return "<|user|>\n" + user_input + " <|end|>\n<|assistant|>";
 }
 
-bool Phi3Engine::chat(const std::string& input, std::string& response) {
-    const std::string prompt = build_prompt(input);
+std::string Phi3Engine::buildPromptWithHistory(const std::string& user_input, const std::string& sessionId) {
+    const auto& history = ChatContextStore::getInstance().getContext(sessionId).historyText;
+
+    std::string prompt;
+
+    for (const auto& [user, ai] : history) {
+        prompt += "<|user|>\n" + user + " <|end|>\n<|assistant|>\n" + ai + " <|end|>\n";
+    }
+    prompt += "<|user|>\n" + user_input + " <|end|>\n<|assistant|>";
+    return prompt;
+}
+
+bool Phi3Engine::chat(const std::string& input, std::string& response, const std::string& sessionId) {
+    // const std::string prompt = buildPrompt(input);
+    const std::string prompt = buildPromptWithHistory(input, sessionId);
     LOG_DEBUG(BASE_TEXT + "收到 Prompt: " + prompt);
 
     // 编码输入的文本prompt
@@ -89,6 +103,7 @@ bool Phi3Engine::chat(const std::string& input, std::string& response) {
 
     // step-by-step 推理生成
     for (size_t step = 0; step < max_steps; ++step) {
+        LOG_DEBUG(BASE_TEXT + std::to_string(step));
         std::vector<int64_t> cur_input;
         int past_len = (step == 0) ? 0: context_len;
         
@@ -167,6 +182,10 @@ bool Phi3Engine::chat(const std::string& input, std::string& response) {
 
     }
     response = m_tokenizer.decodeFromPython(answered_ids);
+
+    auto& context = ChatContextStore::getInstance().getContext(sessionId);
+    context.historyText.emplace_back(input, response);
+
     LOG_DEBUG(BASE_TEXT + "AI响应：" + response);
     return true;
 }
