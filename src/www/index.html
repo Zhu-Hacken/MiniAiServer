@@ -4,25 +4,25 @@
     <meta charset="UTF-8">
     <title>Mini AI Chat</title>
     <style>
-        body {
-            font-family: "Segoe UI", sans-serif;
-            background: #121212;
-            color: #e0e0e0;
+        html, body {
+            height: 100%;
             margin: 0;
             padding: 0;
+            background: #121212;
+            font-family: "Segoe UI", sans-serif;
+            color: #e0e0e0;
         }
 
         .container {
-            max-width: 700px;
-            margin: 40px auto;
-            background: #1e1e1e;
-            border-radius: 12px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
             display: flex;
             flex-direction: column;
-            height: 80vh;
-            overflow: hidden;
+            height: 100%;
+            max-width: 700px;
+            margin: 0 auto;
+            background: #1e1e1e;
+            border-radius: 12px;
             border: 1px solid #333;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
         }
 
         .header {
@@ -32,7 +32,6 @@
             text-align: center;
             background: #212121;
             border-bottom: 1px solid #333;
-            color: #ffffff;
         }
 
         .chat-box {
@@ -76,9 +75,9 @@
 
         .input-area {
             display: flex;
-            border-top: 1px solid #333;
             padding: 10px;
             background: #212121;
+            border-top: 1px solid #333;
         }
 
         .input-area input {
@@ -102,8 +101,9 @@
             cursor: pointer;
         }
 
-        .input-area button:hover {
-            background: #1565c0;
+        .input-area button:disabled {
+            background: #555;
+            cursor: not-allowed;
         }
     </style>
 </head>
@@ -113,11 +113,13 @@
         <div id="chatBox" class="chat-box"></div>
         <div class="input-area">
             <input id="msgInput" type="text" placeholder="请输入问题..." />
-            <button onclick="sendMessage()">发送</button>
+            <button id="sendBtn" onclick="sendMessage()">发送</button>
         </div>
     </div>
 
     <script>
+        let ws = null;
+
         function addMessage(content, sender) {
             const chatBox = document.getElementById("chatBox");
             const div = document.createElement("div");
@@ -127,39 +129,129 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
+        function disableSend(disabled) {
+            document.getElementById("sendBtn").disabled = disabled;
+        }
+
+        let currentAiBubble = null;
+
         function sendMessage() {
             const input = document.getElementById("msgInput");
             const message = input.value.trim();
             if (!message) return;
 
             addMessage(message, "user");
+            input.value = '';
+            disableSend(true);
 
-            fetch('/ai/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: message })
+            let sessionId = localStorage.getItem("sessionId") || "";
+
+            if (!sessionId) {
+                fetch('/ai/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    const reply = data.data || "AI 暂无回复";
+                    addMessage(reply, "ai");
+                    if (data.sessionId) {
+                        localStorage.setItem("sessionId", data.sessionId);
+                    }
+                })
+                .catch(() => {
+                    addMessage("网络错误，请稍后重试。", "ai");
+                })
+                .finally(() => disableSend(false));
+            } else {
+                const wsUrl = `ws://${location.hostname}:9007/ai/streamInfer?sessionId=${sessionId}`;
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = () => {
+                    currentAiBubble = document.createElement("div");
+                    currentAiBubble.className = "msg ai";
+
+                    const bubbleDiv = document.createElement("div");
+                    bubbleDiv.className = "bubble";
+                    bubbleDiv.textContent = "";
+
+                    currentAiBubble.appendChild(bubbleDiv);
+                    document.getElementById("chatBox").appendChild(currentAiBubble);
+                    document.getElementById("chatBox").scrollTop = chatBox.scrollHeight;
+
+                    ws.send(message);
+                };
+
+                ws.onmessage = (event) => {
+                    if (event.data.includes("[DONE]")) {
+                        ws.close();
+                        ws = null;
+                        disableSend(false);
+                        return;
+                    }
+
+                    const bubble = currentAiBubble?.querySelector(".bubble");
+                    if (bubble) {
+                        bubble.textContent += event.data;
+                        document.getElementById("chatBox").scrollTop = chatBox.scrollHeight;
+                    }
+                };
+
+                ws.onclose = () => {
+                    ws = null;
+                    disableSend(false);
+                };
+
+                ws.onerror = () => {
+                    addMessage("WebSocket 错误，请检查服务是否开启", "ai");
+                    disableSend(false);
+                };
+            }
+        }
+
+        function loadHistory() {
+            let sessionId = localStorage.getItem("sessionId");
+
+            // 无 sessionId 时可提前结束
+            if (!sessionId) return;
+
+            fetch("/ai/history", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ sessionId })
             })
             .then(res => res.json())
             .then(data => {
-                input.value = '';
-                const reply = data.data || "AI 暂无回复";
-                addMessage(reply, "ai");
+                // 后端可能返回新 sessionId（原先失效），要及时更新
+                if (data.sessionId) {
+                    localStorage.setItem("sessionId", data.sessionId);
+                }
+
+                // 渲染历史内容
+                if (Array.isArray(data.history)) {
+                    data.history.forEach(pair => {
+                        if (pair.user) addMessage(pair.user, "user");
+                        if (pair.ai) addMessage(pair.ai, "ai");
+                    });
+                }
             })
-            .catch(err => {
-                addMessage("网络错误，请稍后重试。", "ai");
-            })
+            .catch(() => {
+                console.warn("历史加载失败");
+            });
         }
 
-        // 🌟 监听 Enter 键
         document.addEventListener("DOMContentLoaded", () => {
+            loadHistory(); // 页面加载时恢复上下文
             const input = document.getElementById("msgInput");
             input.addEventListener("keydown", (event) => {
                 if (event.key === "Enter") {
-                    event.preventDefault();  // 防止默认换行
+                    event.preventDefault();
                     sendMessage();
                 }
             });
-            input.value = '';
         });
     </script>
 

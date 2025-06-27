@@ -5,10 +5,12 @@
 #include "db/sql_connection_pool.h"
 #include "conn/conn_factory_manager.h"
 
+#include "log_utils.h"
 #include "mvc/controller/chat_controller.h"
 #include "mvc/controller/test_controller.h"
 #include "mvc/controller/user_controller.h"
 #include "mvc/controller/test_tx_controller.h"
+#include "websocket_conn.h"
 
 const std::string BASE_TEXT = "[Init] ";
 
@@ -72,7 +74,8 @@ void registerAllInterceptorImpl() {
     "/video.mp4",
     "/test_transaction.html",
     "/api/tx_test",
-    "/ai/chat"
+    "/ai/chat",
+    "/ai/history"
     
     }, true);
 
@@ -112,6 +115,9 @@ void initConnFactory(ServerConfig config) {
     });
     ConnFactoryManager::getInstance().registerFactory(config.test_port, []() {
         return std::make_shared<HttpConn>();
+    });
+    ConnFactoryManager::getInstance().registerFactory(config.websocket_port, []() {
+        return std::make_shared<WebSocketConn>();
     });
 }
 

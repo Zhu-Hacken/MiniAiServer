@@ -28,9 +28,11 @@ int main(int argc, char* argv[]) {
 
     LOG_INFO(BASE_TEXT + "ONNX Runtime 环境初始化成功！");
 
-    NetServer server(config);
-    server.init(username, password, databasename);
-    server.run();
+    // NetServer server(config);
+    NetServer::getInstance().init(config, username, password, databasename);
+    NetServer::getInstance().run();
+    // server.init(username, password, databasename);
+    // server.run();
 
     return 0;
 }

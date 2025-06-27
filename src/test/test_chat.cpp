@@ -3,6 +3,7 @@
 #include <string>
 #include "log_utils.h"
 #include "logs.h"
+#include "session_manager.h"
 #include "util/utils.h"
 
 const std::string BASE_TEXT = "[TestChat] ";
@@ -28,7 +29,8 @@ int main() {
     // std::string prompt = build_prompt("你是谁？");
     std::string prompt = build_prompt("Hello");
     std::string response;
-    if (engine.chat(prompt, response)) {
+    SessionId sessionId = SessionManager::getInstance().createSession();   
+    if (engine.chat(prompt, response, sessionId)) {
         // LOG_INFO(BASE_TEXT + "AI响应：" + response);
     } else {
         LOG_ERROR(BASE_TEXT + "推理失败");
