@@ -62,19 +62,28 @@ std::string Phi3Engine::buildPrompt(const std::string& user_input) {
 std::string Phi3Engine::buildPromptWithHistory(const std::string& user_input, const std::string& sessionId) {
     const auto& history = ChatContextStore::getInstance().getContext(sessionId).historyText;
 
-    std::string prompt;
+    std::string prompt = "<|system|>\n你是一个温柔、耐心、贴心的女助理，说话语气亲切、礼貌，会称呼用户为“亲”或“宝贝”。\
+                你的回答简洁明了，避免重复，不展开无关内容。你不会主动引导用户提问更复杂的问题，也不会输出指令模板或开发者提示。\n<|end|>\n";
+
+    //  if (history.empty()) {
+        // prompt += "<|system|>\n请用简洁、明确的语言回答问题。每次回复只包含一个答案，不要进行额外扩展，不需要提供更高难度指令、指令2、指令二等不相关内容。<|end|>\n";
+        // prompt += "<|system|>\n请用简洁、明确的语言回答问题。每次回复只包含一个直接答案，不要提供额外扩展或附加指令内容，如“指令二”“更高难度指令”等。<|end|>\n";
+        // prompt += "<|system|>\n你是一个智能助手，请用简洁、准确、上下文一致的语言回答用户问题。不要重复问题，不要输出多余内容。<|end|>\n";
+        // prompt += "<|system|>\n你是，请用简洁、准确、上下文一致的语言回答用户问题。不要重复问题，不要输出多余内容。<|end|>\n";
+        // prompt += "<|system|>\n你是一个温柔、耐心、贴心的女助理，说话语气亲切、礼貌，会称呼用户为“亲”或“宝贝”。你的回答简洁明了，避免重复，不展开无关内容。你不会主动引导用户提问更复杂的问题，也不会输出指令模板或开发者提示。\n<|end|>\n";
+    // }
 
     for (const auto& [user, ai] : history) {
-        prompt += "<|user|>\n" + user + " <|end|>\n<|assistant|>\n" + ai + " <|end|>\n";
+        prompt += "<|user|>\n" + user + "\n<|end|>\n<|assistant|>\n" + ai + "<|end|>\n";
     }
-    prompt += "<|user|>\n" + user_input + " <|end|>\n<|assistant|>";
+    prompt += "<|user|>\n" + user_input + "\n<|end|>\n<|assistant|>";
     return prompt;
 }
 
 bool Phi3Engine::chat(const std::string& input, std::string& response, const std::string& sessionId) {
     // const std::string prompt = buildPrompt(input);
     const std::string prompt = buildPromptWithHistory(input, sessionId);
-    LOG_DEBUG(BASE_TEXT + "收到 Prompt: " + prompt);
+    LOG_DEBUG(BASE_TEXT + "收到 Prompt: \n" + prompt);
 
     // 编码输入的文本prompt
     std::vector<int64_t> input_ids = m_tokenizer.encodeFromPython(prompt);      
@@ -194,10 +203,9 @@ bool Phi3Engine::chat(const std::string& input, std::string& response, const std
 }
 
 bool Phi3Engine::chatStream(const std::string input, const SessionId sessionId) {
-    // const std::string prompt = buildPrompt(input);
     const std::string prompt = buildPromptWithHistory(input, sessionId);
     LOG_DEBUG(BASE_TEXT + " ===========================================");
-    LOG_DEBUG(BASE_TEXT + "收到 Prompt: " + prompt);
+    LOG_DEBUG(BASE_TEXT + "收到 Prompt: \n" + prompt);
 
     // 编码输入的文本prompt
     std::vector<int64_t> input_ids = m_tokenizer.encodeFromPython(prompt);      
@@ -230,8 +238,7 @@ bool Phi3Engine::chatStream(const std::string input, const SessionId sessionId) 
     // step-by-step 推理生成
     std::string accumulated;
     int consecutiveNewlines = 0;
-    std::string pendingNewline;  // 暂存本轮 "\n"，等确认后再决定发不发
-
+    std::string newLines;
     size_t last_sent_pos = 0;
     for (size_t step = 0; step < max_steps; ++step) {
         
@@ -311,31 +318,14 @@ bool Phi3Engine::chatStream(const std::string input, const SessionId sessionId) 
             past_kv_tensors.emplace_back(std::move(outputs[i]));
         }
 
-        // 当前新增的 token 序列
-        // std::vector<int64_t> new_tokens(answered_ids.begin() + last_sent_pos, answered_ids.end());
-
-        // std::string delta = m_tokenizer.decodeFromPython(new_tokens);
-
-        // // 如果 decode 成功且合法
-        // if (!delta.empty() && isValidUtf8(delta)) {
-        //     accumulated += delta;
-        //     last_sent_pos = answered_ids.size();  // 更新位置
-        //     WebsocketConnManager::getInstance().sendToSession(sessionId, delta);
-
-        //     LOG_DEBUG(BASE_TEXT + "chatStream(): " + std::to_string(step)
-        //         + ": " + std::to_string(next_token_id)
-        //         + " - " + delta
-        //         + " - " + accumulated);
-        // }
-        
         // 流式发送
         std::string current = m_tokenizer.decodeFromPython(answered_ids);
         // std::string new_part = current.substr(accumulated.size());
         std::string delta = safeUtf8Delta(current, accumulated);
         // std::string delta = current.substr(last_sent_pos);
         std::ostringstream oss;
-
-        if (delta == "\n") {
+        
+        if (!delta.empty() && delta.front() == '\n' && delta.back() == '\n') {
             ++consecutiveNewlines;
         } else {
             consecutiveNewlines = 0;
@@ -346,114 +336,27 @@ bool Phi3Engine::chatStream(const std::string input, const SessionId sessionId) 
             break;
         }
 
-        for (size_t i = 0; i < current.size(); ++i) {
-            oss << "BYTE[" << i << "] = 0x"
-                << std::uppercase << std::hex << std::setw(2) << std::setfill('0')
-                << static_cast<unsigned int>(static_cast<unsigned char>(current[i])) 
-                // << " = " << std::to_string(answered_ids[i])
-                << std::endl;
-            // printf("BYTE[%zu] = 0x%02X\n", i, static_cast<unsigned char>(current[i]));
-        }
-        LOG_INFO(BASE_TEXT + oss.str() + "\n" + std::to_string(answered_ids[answered_ids.size() - 1]));
-        // LOG_INFO(BASE_TEXT + current);
         if (!delta.empty()) {
-            accumulated += delta;
-            WebsocketConnManager::getInstance().sendToSession(sessionId, delta);
-               LOG_DEBUG(BASE_TEXT + "chatStream(): "
+            if (consecutiveNewlines <= 1) {
+                accumulated += delta;
+                WebsocketConnManager::getInstance().sendToSession(sessionId, delta);
+                LOG_DEBUG(BASE_TEXT + "chatStream(): "
                 + std::to_string(step)
                 + ": " + std::to_string(next_token_id)
                 + " - " + delta
                 + " - " + current);
+            } 
         } else {
             LOG_DEBUG(BASE_TEXT + "skip sending: pending UTF-8 completion");
         }
 
-        // if (endsWithValidUtf8(delta)) {
-        //     WebsocketConnManager::getInstance().sendToSession(sessionId, delta);
-        //     last_sent_pos = current.size();  // 更新偏移
-        //     LOG_DEBUG(BASE_TEXT + "chatStream(): "
-        //         + std::to_string(step)
-        //         + ": " + std::to_string(next_token_id)
-        //         + " - " + delta
-        //         + " - " + current);
-        // } else {
-        //     LOG_DEBUG(BASE_TEXT + "skip sending: pending UTF-8 completion");
-        // }
-        // LOG_DEBUG(BASE_TEXT + std::to_string(step) + ": accumulated.size(): " + std::to_string(accumulated.size()));
-        // LOG_DEBUG(BASE_TEXT + std::to_string(step) + ": current.size(): " + std::to_string(current.size()));
-        // LOG_DEBUG(BASE_TEXT + std::to_string(step) + ": accumulated: [" + accumulated + "]");
-        // LOG_DEBUG(BASE_TEXT + std::to_string(step) + ": current:     [" + current + "]");
-        // if ( !isValidUtf8(current)) {
-        //     LOG_DEBUG(BASE_TEXT + "invalid UTF-8 at step " + std::to_string(step));
-        //     continue;
-        // }
-
-        // if (last_sent_pos > current.size()) {
-        //     LOG_ERROR(BASE_TEXT + "last_sent_pos(" + std::to_string(last_sent_pos) + ") > current.size(" + std::to_string(current.size()) + ")");
-        //     last_sent_pos = current.size();  // 重置防止崩溃
-        //     continue;
-        // }
-
-        // size_t current_len = current.size();
-        // if (current_len > last_sent_pos) {
-        //     std::string delta = current.substr(last_sent_pos);
-        //     last_sent_pos = current_len;
-
-        //     WebsocketConnManager::getInstance().sendToSession(sessionId, delta);
-
-        //     LOG_DEBUG(BASE_TEXT + "chatStream(): " 
-        //         + std::to_string(step) 
-        //         + ": " + std::to_string(answered_ids[answered_ids.size()- 1]) 
-        //         + " - " + delta 
-        //         + " - " + current) ;
-        // }
-
-        // std::string delta = getUtf8Delta(accumulated, current);
-
-
-        // // LOG_DEBUG(BASE_TEXT + "chatStream(): " 
-        // //         + std::to_string(step));
-
-        // if ( !delta.empty()) {
-        //     // accumulated = current;
-        //     accumulated += delta;
-        //     WebsocketConnManager::getInstance().sendToSession(sessionId, delta);
-
-        //     // std::string delta = getUtf8Delta(accumulated, current);
-        //     LOG_DEBUG(BASE_TEXT + "chatStream(): " 
-        //         + std::to_string(step) 
-        //         + ": " + std::to_string(answered_ids[answered_ids.size()- 1]) 
-        //         + " - " + delta 
-        //         + " - " + current) ;
-        // }
-        
-        // if ( !current.empty()) {
-        //     accumulated = current;
-        //     std::string delta = current.substr(accumulated.size());
-        //     // std::string delta = getUtf8Delta(accumulated, current);
-        //     LOG_DEBUG(BASE_TEXT + "chatStream(): " + std::to_string(step) + ": " + std::to_string(answered_ids[answered_ids.size()- 1]) + " - " + delta + " - " + current) ;
-        //     accumulated = current;
-        //     WebsocketConnManager::getInstance().sendToSession(sessionId, delta);
-        // }
     }
+    LOG_INFO(BASE_TEXT + "最终发送内容：" + accumulated);
     // response = m_tokenizer.decodeFromPython(answered_ids);
 
     auto& context = ChatContextStore::getInstance().getContext(sessionId);
-    // context.historyText.emplace_back(input, response);
+    context.historyText.emplace_back(input, accumulated);
 
     // LOG_DEBUG(BASE_TEXT + "AI响应：" + response);
     return true;
 }
-
-// 获取 UTF-8 增量部分
-// std::string Phi3Engine::getUtf8Delta(const std::string& prev, const std::string& curr) {
-//     static std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> conv;
-
-//     auto u_prev = conv.from_bytes(prev);
-//     auto u_curr = conv.from_bytes(curr);
-
-//     if (u_curr.size() < u_prev.size()) return "";
-
-//     std::u32string delta = u_curr.substr(u_prev.size());
-//     return conv.to_bytes(delta);
-// }
