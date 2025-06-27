@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include "session_manager.h"
 #include "tokenizer/tokenizer.h"
 
 /*
@@ -18,11 +19,13 @@ public:
 
     // 对话接口：传入用户问题，返回模型回复
     // bool chat(const std::string& prompt, std::string& response);
-    bool chat(const std::string& prompt, std::string& response, const std::string& sessionId);
+    bool chat(const std::string& input, std::string& response, const std::string& sessionId);
+    bool chatStream(const std::string msg, const SessionId sessionId);
 
 private:
     std::string buildPrompt(const std::string& user_input);
     std::string buildPromptWithHistory(const std::string& user_input, const std::string& sessionId);
+    // std::string getUtf8Delta(const std::string& prev, const std::string& curr);
 
     Tokenizer m_tokenizer;
     // 模型输入输出维度缓存
