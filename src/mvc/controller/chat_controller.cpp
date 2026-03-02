@@ -107,8 +107,9 @@ void ChatController::getHistory(HttpRequest& http_request, HttpResponse& http_re
     }
     Json json_out;
     Json json_arr = Json::array();
-    if ( !SessionManager::getInstance().isSessionIdValid(sessionId)) {
-        sessionId = SessionManager::getInstance().createSession();
+    if ( !SessionManager::getInstance().isSessionIdValid(sessionId) && !SessionManager::getInstance().isSessionIdExpired(sessionId)) {
+        LOG_DEBUG(BASE_TEXT + "无效 sessionId = " + sessionId);
+        sessionId = SessionManager::getInstance().createSession(180000);
         // http_response.sendJson(400, {{"error", "Invalid sessionId"}});
     } else {
         const auto& history = ChatContextStore::getInstance().getContext(sessionId).historyText;

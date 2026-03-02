@@ -41,8 +41,9 @@ void registerAllRoutesImpl() {
 }
 
 void initRouter() {
-    RouterConfig::setRouteRegisterFunc(registerAllRoutesImpl);
-    RouterConfig::registerAllRoutes();
+    registerAllRoutesImpl();
+    // RouterConfig::setRouteRegisterFunc(registerAllRoutesImpl);
+    // RouterConfig::registerAllRoutes();
 }
 
 // === 初始化频率限制器 ===
