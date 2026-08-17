@@ -16,7 +16,14 @@ ServerProcessManager::ServerProcessManager(QObject *parent)
     connect(m_process, &QProcess::errorOccurred, this, [this](QProcess::ProcessError) {
         emit serverError(m_process->errorString());
     });
-
+    connect(m_process, &QProcess::readyReadStandardOutput, this, [this]() {
+        QByteArray data = m_process->readAllStandardOutput();
+        emit logReceived(QString::fromLocal8Bit(data));
+    });
+    connect(m_process, &QProcess::readyReadStandardError, this, [this]() {
+        QByteArray data = m_process->readAllStandardError();
+        emit logReceived(QString::fromLocal8Bit(data));
+    });
 }
 
 void ServerProcessManager::startServer() {

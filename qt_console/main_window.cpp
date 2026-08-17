@@ -3,6 +3,7 @@
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QPushButton>
+#include <QTextEdit>
 #include "server_process_manager.h"
 
 MainWindow::MainWindow(QWidget *parent)
@@ -19,14 +20,20 @@ MainWindow::MainWindow(QWidget *parent)
     m_startButton = new QPushButton("Start Server", central_widget);
     m_stopButton = new QPushButton("Stop Server", central_widget);
     m_stopButton->setEnabled(false); // Initially disabled
+    m_logTextEdit = new QTextEdit(central_widget);
+    m_logTextEdit->setReadOnly(true);
+    m_logTextEdit->setPlaceholderText("Server logs will appear here...");
 
     connect(m_processManager, &ServerProcessManager::serverStarted, this, &MainWindow::onServerStarted);
     connect(m_processManager, &ServerProcessManager::serverStopped, this, &MainWindow::onServerStopped);
     connect(m_processManager, &ServerProcessManager::serverError, this, &MainWindow::onServerError);
+    connect(m_processManager, &ServerProcessManager::logReceived, this, &MainWindow::onLogReceived);
 
     main_layout->addWidget(m_statusLabel);
     main_layout->addWidget(m_startButton);
     main_layout->addWidget(m_stopButton);
+    main_layout->addWidget(m_logTextEdit);
+
     connect(m_startButton, &QPushButton::clicked, this, &MainWindow::onStartButtonClicked);
     connect(m_stopButton, &QPushButton::clicked, this, [this]() {
         m_statusLabel->setText("Server Status: Stopping...");
@@ -65,4 +72,9 @@ void MainWindow::onServerError(const QString &message)
     m_statusLabel->setText("Server Status: Failed");
     m_startButton->setEnabled(true);
     m_stopButton->setEnabled(false);
+}
+
+void MainWindow::onLogReceived(const QString &message)
+{
+    m_logTextEdit->append(message);
 }

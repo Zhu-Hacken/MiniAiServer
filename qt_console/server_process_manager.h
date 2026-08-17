@@ -17,6 +17,7 @@ signals:
     void serverStarted();
     void serverStopped();
     void serverError(const QString &message);
+    void logReceived(const QString &message);
 private:
     QProcess *m_process;
 };
