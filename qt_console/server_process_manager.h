@@ -12,6 +12,7 @@ class ServerProcessManager : public QObject
 public:
     explicit ServerProcessManager(QObject *parent = nullptr);
     void startServer();
+    void stopServer();
 signals:
     void serverStarted();
     void serverStopped();

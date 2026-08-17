@@ -35,3 +35,10 @@ void ServerProcessManager::startServer() {
     m_process->start(server_path);
 }
 
+void ServerProcessManager::stopServer() {
+    if (m_process->state() == QProcess::NotRunning) {
+        return; // Server is not running
+    }
+
+    m_process->terminate();
+}
