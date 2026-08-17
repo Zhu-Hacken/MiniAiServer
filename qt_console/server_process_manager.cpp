@@ -26,7 +26,7 @@ ServerProcessManager::ServerProcessManager(QObject *parent)
     });
 }
 
-void ServerProcessManager::startServer() {
+void ServerProcessManager::startServer(const QStringList &arguments) {
     if (m_process->state() != QProcess::NotRunning) {
         return; // Server is already running
     }
@@ -39,7 +39,7 @@ void ServerProcessManager::startServer() {
     QString server_path = project_dir.filePath("build/MiniAiServer");
 
     m_process->setWorkingDirectory(project_dir.absolutePath());
-    m_process->start(server_path);
+    m_process->start(server_path, arguments);
 }
 
 void ServerProcessManager::stopServer() {
