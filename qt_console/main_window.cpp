@@ -8,6 +8,7 @@
 #include <QComboBox>
 #include <QDebug>
 #include <QTimer>
+#include <QTextDocument>
 
 #include "server_process_manager.h"
 #include "server_status_client.h"
@@ -40,10 +41,13 @@ MainWindow::MainWindow(QWidget *parent)
     m_restartButton = new QPushButton("Restart Server", central_widget);
     m_restartButton->setEnabled(false); // Initially disabled
 
+
     m_logTextEdit = new QTextEdit(central_widget);
+    m_logTextEdit->document()->setMaximumBlockCount(3000);
     m_logTextEdit->setReadOnly(true);
     m_logTextEdit->setPlaceholderText("Server logs will appear here...");
-    
+    m_clearLogButton = new QPushButton("Clear Logs", central_widget);
+
     m_httpPortSpinBox = new QSpinBox(central_widget);
     m_httpPortSpinBox->setRange(1, 65535);
     m_httpPortSpinBox->setValue(9006);
@@ -73,6 +77,7 @@ MainWindow::MainWindow(QWidget *parent)
     main_layout->addWidget(m_startButton);
     main_layout->addWidget(m_stopButton);
     main_layout->addWidget(m_restartButton);
+    
     main_layout->addWidget(new QLabel("HTTP Port", central_widget));
     main_layout->addWidget(m_httpPortSpinBox);
 
@@ -86,7 +91,7 @@ MainWindow::MainWindow(QWidget *parent)
     main_layout->addWidget(m_actorModelComboBox);
 
     main_layout->addWidget(m_logTextEdit);
-
+    main_layout->addWidget(m_clearLogButton);
 
 
     connect(m_startButton, &QPushButton::clicked, this, &MainWindow::onStartButtonClicked);
@@ -108,7 +113,9 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_statusClient, &ServerStatusClient::serviceOffline, this, [this]() {
         m_httpServiceLabel->setText("HTTP Service: Offline");
     });
-
+    connect(m_clearLogButton, &QPushButton::clicked, this, [this]() {
+        m_logTextEdit->clear();
+    });
 
 
     main_layout->addStretch(); // Add stretch to push the widgets to the top

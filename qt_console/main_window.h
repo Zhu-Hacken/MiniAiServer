@@ -27,6 +27,7 @@ private:
     QPushButton *m_startButton;
     QPushButton *m_stopButton;
     QPushButton *m_restartButton;
+    QPushButton *m_clearLogButton;
     QTextEdit *m_logTextEdit;
     QSpinBox *m_httpPortSpinBox;
     QSpinBox *m_workerThreadsSpinBox;
