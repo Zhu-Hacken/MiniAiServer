@@ -5,9 +5,10 @@
 #include <QString>
 #include <QDateTime>
 
+class ServerProcessManager;
+class ServerStatusClient;
 class QLabel;
 class QPushButton;
-class ServerProcessManager;
 class QTextEdit;
 class QSpinBox;
 class QComboBox;
@@ -22,6 +23,7 @@ private:
     QLabel *m_statusLabel;
     QLabel *m_pidLabel;
     QLabel *m_uptimeLabel;
+    QLabel *m_httpServiceLabel;
     QPushButton *m_startButton;
     QPushButton *m_stopButton;
     QPushButton *m_restartButton;
@@ -34,6 +36,7 @@ private:
     QDateTime m_serverStartTime;
 
     ServerProcessManager *m_processManager;
+    ServerStatusClient *m_statusClient;
 
     void onStartButtonClicked();
     void onServerStarted();

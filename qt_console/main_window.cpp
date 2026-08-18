@@ -10,9 +10,12 @@
 #include <QTimer>
 
 #include "server_process_manager.h"
+#include "server_status_client.h"
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), m_processManager(new ServerProcessManager(this)), m_uptimeTimer(new QTimer(this))
+    : QMainWindow(parent), m_processManager(new ServerProcessManager(this)), 
+    m_uptimeTimer(new QTimer(this)), m_statusClient(new ServerStatusClient(this))
+
 {
     setWindowTitle("MiniAiServer Control Center");
     resize(800, 600);
@@ -26,6 +29,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     m_uptimeLabel = new QLabel("Uptime: 00:00:00", central_widget);
     m_uptimeTimer->setInterval(1000); // Update every second
+
+    m_httpServiceLabel = new QLabel("HTTP Service: Offline", central_widget);
 
     m_startButton = new QPushButton("Start Server", central_widget);
     
@@ -64,6 +69,7 @@ MainWindow::MainWindow(QWidget *parent)
     main_layout->addWidget(m_statusLabel);
     main_layout->addWidget(m_pidLabel);
     main_layout->addWidget(m_uptimeLabel);
+    main_layout->addWidget(m_httpServiceLabel);
     main_layout->addWidget(m_startButton);
     main_layout->addWidget(m_stopButton);
     main_layout->addWidget(m_restartButton);
@@ -96,6 +102,15 @@ MainWindow::MainWindow(QWidget *parent)
         m_processManager->restartServer();
     });
     connect(m_uptimeTimer, &QTimer::timeout, this, &MainWindow::updateUptime);
+    connect(m_statusClient, &ServerStatusClient::serviceOnline, this, [this]() {
+        m_httpServiceLabel->setText("HTTP Service: Online");
+    });
+    connect(m_statusClient, &ServerStatusClient::serviceOffline, this, [this]() {
+        m_httpServiceLabel->setText("HTTP Service: Offline");
+    });
+
+
+
     main_layout->addStretch(); // Add stretch to push the widgets to the top
 
 
@@ -129,6 +144,14 @@ void MainWindow::onServerStarted()
     m_restartButton->setEnabled(true);
     m_serverStartTime = QDateTime::currentDateTime();
     m_uptimeTimer->start();
+
+    m_statusClient->startPolling(m_httpPortSpinBox->value());
+    // int http_port = m_httpPortSpinBox->value();
+
+    // QTimer::singleShot(1000, this, [this, http_port]() {
+    //     m_statusClient->requestStatus(http_port);
+    // });
+    // m_statusClient->requestStatus(m_httpPortSpinBox->value());
 }
 
 void MainWindow::onServerStopped()
@@ -141,6 +164,8 @@ void MainWindow::onServerStopped()
     m_restartButton->setEnabled(false);
     m_uptimeTimer->stop();
     m_uptimeLabel->setText("Uptime: 00:00:00");
+    m_statusClient->stopPolling();
+    m_httpServiceLabel->setText("HTTP Service: Offline");
 }
 
 void MainWindow::onServerError(const QString &message)
@@ -153,6 +178,8 @@ void MainWindow::onServerError(const QString &message)
     m_restartButton->setEnabled(false);
     m_uptimeTimer->stop();
     m_uptimeLabel->setText("Uptime: 00:00:00");
+    m_statusClient->stopPolling();
+    m_httpServiceLabel->setText("HTTP Service: Offline");
 }
 
 void MainWindow::onLogReceived(const QString &message)
