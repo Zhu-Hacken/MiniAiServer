@@ -7,11 +7,12 @@
 #include <QSpinBox>
 #include <QComboBox>
 #include <QDebug>
+#include <QTimer>
 
 #include "server_process_manager.h"
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), m_processManager(new ServerProcessManager(this))
+    : QMainWindow(parent), m_processManager(new ServerProcessManager(this)), m_uptimeTimer(new QTimer(this))
 {
     setWindowTitle("MiniAiServer Control Center");
     resize(800, 600);
@@ -22,6 +23,10 @@ MainWindow::MainWindow(QWidget *parent)
 
     m_statusLabel = new QLabel("Server Status: Stopped", central_widget);
     m_pidLabel = new QLabel("PID: -", central_widget);
+
+    m_uptimeLabel = new QLabel("Uptime: 00:00:00", central_widget);
+    m_uptimeTimer->setInterval(1000); // Update every second
+
     m_startButton = new QPushButton("Start Server", central_widget);
     
     m_stopButton = new QPushButton("Stop Server", central_widget);
@@ -58,6 +63,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     main_layout->addWidget(m_statusLabel);
     main_layout->addWidget(m_pidLabel);
+    main_layout->addWidget(m_uptimeLabel);
     main_layout->addWidget(m_startButton);
     main_layout->addWidget(m_stopButton);
     main_layout->addWidget(m_restartButton);
@@ -89,6 +95,7 @@ MainWindow::MainWindow(QWidget *parent)
         m_restartButton->setEnabled(false);
         m_processManager->restartServer();
     });
+    connect(m_uptimeTimer, &QTimer::timeout, this, &MainWindow::updateUptime);
     main_layout->addStretch(); // Add stretch to push the widgets to the top
 
 
@@ -120,6 +127,8 @@ void MainWindow::onServerStarted()
     setLaunchConfigEnabled(false);
     m_stopButton->setEnabled(true);
     m_restartButton->setEnabled(true);
+    m_serverStartTime = QDateTime::currentDateTime();
+    m_uptimeTimer->start();
 }
 
 void MainWindow::onServerStopped()
@@ -130,6 +139,8 @@ void MainWindow::onServerStopped()
     setLaunchConfigEnabled(true);
     m_stopButton->setEnabled(false);
     m_restartButton->setEnabled(false);
+    m_uptimeTimer->stop();
+    m_uptimeLabel->setText("Uptime: 00:00:00");
 }
 
 void MainWindow::onServerError(const QString &message)
@@ -140,6 +151,8 @@ void MainWindow::onServerError(const QString &message)
     setLaunchConfigEnabled(true);
     m_stopButton->setEnabled(false);
     m_restartButton->setEnabled(false);
+    m_uptimeTimer->stop();
+    m_uptimeLabel->setText("Uptime: 00:00:00");
 }
 
 void MainWindow::onLogReceived(const QString &message)
@@ -152,4 +165,18 @@ void MainWindow::setLaunchConfigEnabled(bool enabled) {
     m_workerThreadsSpinBox->setEnabled(enabled);
     m_triggerModeComboBox->setEnabled(enabled);
     m_actorModelComboBox->setEnabled(enabled);
+}
+
+void MainWindow::updateUptime() {
+    qint64 elapsed_seconds = m_serverStartTime.secsTo(QDateTime::currentDateTime());
+
+    int hours = elapsed_seconds / 3600;
+    int minutes = (elapsed_seconds % 3600) / 60;
+    int seconds = elapsed_seconds % 60;
+
+    m_uptimeLabel->setText(QString("Uptime: %1:%2:%3")
+                            .arg(hours, 2, 10, QChar('0'))
+                            .arg(minutes, 2, 10, QChar('0'))
+                            .arg(seconds, 2, 10, QChar('0')));
+
 }
