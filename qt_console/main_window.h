@@ -13,11 +13,14 @@ class QTextEdit;
 class QSpinBox;
 class QComboBox;
 class QTimer;
+class QCloseEvent;
 
 class MainWindow : public QMainWindow
 {
 public:
     explicit MainWindow(QWidget *parent = nullptr);
+protected:
+    void closeEvent(QCloseEvent *event) override;
 
 private:
     QLabel *m_statusLabel;
@@ -35,6 +38,8 @@ private:
     QComboBox *m_actorModelComboBox;
     QTimer *m_uptimeTimer;
     QDateTime m_serverStartTime;
+
+    bool m_closePending;
 
     ServerProcessManager *m_processManager;
     ServerStatusClient *m_statusClient;

@@ -9,14 +9,15 @@
 #include <QDebug>
 #include <QTimer>
 #include <QTextDocument>
+#include <QCloseEvent>
 
 #include "server_process_manager.h"
 #include "server_status_client.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), m_processManager(new ServerProcessManager(this)), 
-    m_uptimeTimer(new QTimer(this)), m_statusClient(new ServerStatusClient(this))
-
+    m_uptimeTimer(new QTimer(this)), m_statusClient(new ServerStatusClient(this)),
+    m_closePending(false)
 {
     setWindowTitle("MiniAiServer Control Center");
     resize(800, 600);
@@ -173,6 +174,11 @@ void MainWindow::onServerStopped()
     m_uptimeLabel->setText("Uptime: 00:00:00");
     m_statusClient->stopPolling();
     m_httpServiceLabel->setText("HTTP Service: Offline");
+
+    if (m_closePending) {
+        m_closePending = false;
+        close(); // Close the window after the server has stopped
+    }
 }
 
 void MainWindow::onServerError(const QString &message)
@@ -213,4 +219,19 @@ void MainWindow::updateUptime() {
                             .arg(minutes, 2, 10, QChar('0'))
                             .arg(seconds, 2, 10, QChar('0')));
 
+}
+
+void MainWindow::closeEvent(QCloseEvent *event) {
+    if (m_processManager->isRunning()) {
+        m_closePending = true;
+
+        m_statusLabel->setText("Server Status: Stopping...");
+        m_stopButton->setEnabled(false);
+        m_processManager->stopServer();
+
+        event->ignore(); // Ignore the close event for now, will close after server stops
+        return;
+    }
+
+    event->accept(); // Accept the close event to proceed with closing the window
 }

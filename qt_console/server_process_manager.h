@@ -16,6 +16,10 @@ public:
     void stopServer();
     void restartServer();  
     qint64 processId() const;
+    bool isRunning() const;
+    bool waitForFinished(int timeout_ms = 3000); // Wait for the server process to finish, with a default timeout of 3000 ms
+    void killServer(); // Forcefully terminate the server process
+
 signals:
     void serverStarted();
     void serverStopped();

@@ -68,3 +68,17 @@ void ServerProcessManager::restartServer() {
 qint64 ServerProcessManager::processId() const {
     return m_process->processId();
 }
+
+bool ServerProcessManager::isRunning() const {
+    return m_process->state() != QProcess::NotRunning;
+}
+
+bool ServerProcessManager::waitForFinished(int timeout_ms) {
+    return m_process->waitForFinished(timeout_ms);
+}
+
+void ServerProcessManager::killServer() {
+    if (m_process->state() != QProcess::NotRunning) {
+        m_process->kill();
+    }
+}
