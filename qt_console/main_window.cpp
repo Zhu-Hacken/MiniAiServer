@@ -21,11 +21,15 @@ MainWindow::MainWindow(QWidget *parent)
     QVBoxLayout *main_layout = new QVBoxLayout(central_widget);
 
     m_statusLabel = new QLabel("Server Status: Stopped", central_widget);
+    m_pidLabel = new QLabel("PID: -", central_widget);
     m_startButton = new QPushButton("Start Server", central_widget);
     
     m_stopButton = new QPushButton("Stop Server", central_widget);
     m_stopButton->setEnabled(false); // Initially disabled
     
+    m_restartButton = new QPushButton("Restart Server", central_widget);
+    m_restartButton->setEnabled(false); // Initially disabled
+
     m_logTextEdit = new QTextEdit(central_widget);
     m_logTextEdit->setReadOnly(true);
     m_logTextEdit->setPlaceholderText("Server logs will appear here...");
@@ -53,9 +57,10 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_processManager, &ServerProcessManager::logReceived, this, &MainWindow::onLogReceived);
 
     main_layout->addWidget(m_statusLabel);
+    main_layout->addWidget(m_pidLabel);
     main_layout->addWidget(m_startButton);
     main_layout->addWidget(m_stopButton);
-
+    main_layout->addWidget(m_restartButton);
     main_layout->addWidget(new QLabel("HTTP Port", central_widget));
     main_layout->addWidget(m_httpPortSpinBox);
 
@@ -77,6 +82,12 @@ MainWindow::MainWindow(QWidget *parent)
         m_statusLabel->setText("Server Status: Stopping...");
         m_stopButton->setEnabled(false);
         m_processManager->stopServer();
+    });
+    connect(m_restartButton, &QPushButton::clicked, this, [this]() {
+        m_statusLabel->setText("Server Status: Restarting...");
+        m_stopButton->setEnabled(false);
+        m_restartButton->setEnabled(false);
+        m_processManager->restartServer();
     });
     main_layout->addStretch(); // Add stretch to push the widgets to the top
 
@@ -104,25 +115,31 @@ void MainWindow::onStartButtonClicked()
 void MainWindow::onServerStarted()
 {
     m_statusLabel->setText("Server Status: Running");
+    m_pidLabel->setText(QString("PID: %1").arg(m_processManager->processId()));
     m_startButton->setEnabled(false);
     setLaunchConfigEnabled(false);
     m_stopButton->setEnabled(true);
+    m_restartButton->setEnabled(true);
 }
 
 void MainWindow::onServerStopped()
 {
     m_statusLabel->setText("Server Status: Stopped");
+    m_pidLabel->setText("PID: -");
     m_startButton->setEnabled(true);
     setLaunchConfigEnabled(true);
     m_stopButton->setEnabled(false);
+    m_restartButton->setEnabled(false);
 }
 
 void MainWindow::onServerError(const QString &message)
 {
     m_statusLabel->setText("Server Status: Failed");
+    m_pidLabel->setText("PID: -");
     m_startButton->setEnabled(true);
     setLaunchConfigEnabled(true);
     m_stopButton->setEnabled(false);
+    m_restartButton->setEnabled(false);
 }
 
 void MainWindow::onLogReceived(const QString &message)

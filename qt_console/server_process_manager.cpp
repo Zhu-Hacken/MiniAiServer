@@ -5,13 +5,18 @@
 #include <QDir>
 
 ServerProcessManager::ServerProcessManager(QObject *parent)
-    : QObject(parent), m_process(new QProcess(this))
+    : QObject(parent), m_process(new QProcess(this)), m_restartPending(false)
 {
     connect(m_process, &QProcess::started, this, [this]() {
         emit serverStarted();
     });
     connect(m_process, &QProcess::finished, this, [this](int, QProcess::ExitStatus) {   // int exit_code,QProcess::ExitStatus exit_status
         emit serverStopped();
+
+        if (m_restartPending) {
+            m_restartPending = false;
+            startServer(m_lastArguments);
+        }
     });
     connect(m_process, &QProcess::errorOccurred, this, [this](QProcess::ProcessError) {
         emit serverError(m_process->errorString());
@@ -30,7 +35,7 @@ void ServerProcessManager::startServer(const QStringList &arguments) {
     if (m_process->state() != QProcess::NotRunning) {
         return; // Server is already running
     }
-
+    m_lastArguments = arguments; // Store the last used arguments for potential restart
     QDir project_dir(QCoreApplication::applicationDirPath());
 
     project_dir.cdUp(); // Move up to the project root directory
@@ -48,4 +53,18 @@ void ServerProcessManager::stopServer() {
     }
 
     m_process->terminate();
+}
+
+void ServerProcessManager::restartServer() {
+    if (m_process->state() == QProcess::NotRunning) {
+        startServer(m_lastArguments); 
+        return;
+    }
+
+    m_restartPending = true;
+    stopServer();
+}
+
+qint64 ServerProcessManager::processId() const {
+    return m_process->processId();
 }

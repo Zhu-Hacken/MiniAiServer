@@ -18,8 +18,10 @@ public:
 
 private:
     QLabel *m_statusLabel;
+    QLabel *m_pidLabel;
     QPushButton *m_startButton;
     QPushButton *m_stopButton;
+    QPushButton *m_restartButton;
     QTextEdit *m_logTextEdit;
     QSpinBox *m_httpPortSpinBox;
     QSpinBox *m_workerThreadsSpinBox;
